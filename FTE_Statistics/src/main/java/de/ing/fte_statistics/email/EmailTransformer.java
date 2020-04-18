@@ -20,8 +20,6 @@ package de.ing.fte_statistics.email;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.springframework.integration.annotation.Transformer;
 
 import lombok.extern.slf4j.Slf4j;
