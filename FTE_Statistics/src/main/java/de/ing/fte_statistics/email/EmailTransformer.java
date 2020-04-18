@@ -22,21 +22,25 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-
 import org.springframework.integration.annotation.Transformer;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Parses the E-mail Message and converts each containing message and/or attachment into
  * a {@link List} of {@link EmailFragment}s.
+ * 
+ * Logger changed by Jo Wagner
  *
  * @author Gunnar Hillert
  * @author Gary Russell
  * @since 2.2
  *
  */
+@Slf4j
 public class EmailTransformer {
 
-	private static final Log LOGGER = LogFactory.getLog(EmailTransformer.class);
+	
 
 	@Transformer
 	public List<EmailFragment> transformit(javax.mail.Message mailMessage) {
@@ -45,9 +49,9 @@ public class EmailTransformer {
 
 		EmailParserUtils.handleMessage(null, mailMessage, emailFragments);
 
-		if (LOGGER.isInfoEnabled()) {
-			LOGGER.info(String.format("Email contains %s fragments.", emailFragments.size()));
-		}
+		
+		log.info(String.format("Email contains %s fragments.", emailFragments.size()));
+		
 
 		return emailFragments;
 	}

@@ -21,8 +21,10 @@ import de.ing.fte_statistics.email.EmailTransformer;
 
 /**
  * 
- * Pollt Nachrichten im eMail-Postfach und reicht sie an den Handler weiter. Der Schreibt die Attachments in Filesystem
+ * Pollt Nachrichten im eMail-Postfach und reicht sie an den Handler weiter. Der Schreibt die Attachments ins Filesystem
  * 
+ * 
+ * Inbound (Mail) -> Splitten in Bestandteile der mail (Body, Excel) -> Outbound (File-System) 
  * 
  * @author JoachimWagner
  *
@@ -71,6 +73,11 @@ public class MailReceiverConfig {
 	@Value("${mail.poller.maxMessagesPerPoll}")
 	private long maxMessagesPerPoll;
 
+	/**
+	 * erzeugt den Empfänger für das E-Mail Postfach
+	 * @return
+	 * @throws Exception
+	 */
 	@Bean
 	public ImapMailReceiver getImapMailReceiver() throws Exception {
 
@@ -93,6 +100,11 @@ public class MailReceiverConfig {
 
 	}
 
+	/**
+	 * Baut die Zugangsdaten zu einem URL-String zusammen. Format imaps://username:passwort@mailsserver.de:993/INBOX 
+	 * das der Name eine '@' enthält, wird er URL-encoded
+	 * 
+	 */
 	private String getMailUrl() throws Exception {
 		return new StringBuilder().append(protocol).append("://")
 				.append(URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8.toString())).append(":")
@@ -100,15 +112,27 @@ public class MailReceiverConfig {
 				.toString();
 	}
 
+	
+	/**
+	 * Einstiegspunkt der Verarbeitungspipeline in den Mail-Empfang. Der InboundAdapter polled in Intervallen ob eine Mail bereitsteht 
+	 * und leitet sie an extractAttachments weiter  
+	 * @param imapMailReceiver
+	 * @return
+	 */
 	@Bean
-
 	public IntegrationFlow polledEmails(ImapMailReceiver imapMailReceiver) {
 		return IntegrationFlows
 				.from(Mail.imapInboundAdapter(imapMailReceiver).get(),
 						e -> e.poller(Pollers.fixedRate(pollerRate).maxMessagesPerPoll(maxMessagesPerPoll)))
+				
 				.channel(MessageChannels.direct("incomingMail")).get();
 	}
 
+	/**
+	 * Splittet die Mail in Ihre Fragmente und stößt für jedes Fragment eine eigene Verarbeitung an (Text, Excel, etc.)
+	 * 
+	 * @return
+	 */
 	@Bean
 	public IntegrationFlow extractAttachments() {
 
@@ -118,6 +142,12 @@ public class MailReceiverConfig {
 				.get();
 	}
 
+	
+	/**
+	 * Schreibt die einzelenen Mailfragmente als Dateien weg
+	 * 
+	 * @return
+	 */
 	@Bean
 	public IntegrationFlow writeAttachmentAsFile() {
 

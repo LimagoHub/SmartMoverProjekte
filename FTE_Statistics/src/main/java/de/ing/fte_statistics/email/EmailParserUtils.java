@@ -32,22 +32,22 @@ import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.ParseException;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import org.springframework.util.Assert;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
- * Utility Class for parsing mail messages.
+ * Utility Class for parsing mail messages. Logger changed by Jo Wagner
  *
  * @author Gunnar Hillert
  * @author Gary Russell
  * @since 2.2
  *
  */
+@Slf4j
 public final class EmailParserUtils {
 
-	private static final Log LOGGER = LogFactory.getLog(EmailParserUtils.class);
+	
 
 	/** Prevent instantiation. */
 	private EmailParserUtils() {
@@ -104,6 +104,7 @@ public final class EmailParserUtils {
 			handleMultipart(directoryToUse, multipart, mailMessage, emailFragments);
 		}
 		else {
+			log.error("This content type is not handled - " + content.getClass().getSimpleName());
 			throw new IllegalStateException("This content type is not handled - " + content.getClass().getSimpleName());
 		}
 
@@ -138,12 +139,13 @@ public final class EmailParserUtils {
 		try {
 			count = multipart.getCount();
 
-			if (LOGGER.isInfoEnabled()) {
-				LOGGER.info(String.format("Number of enclosed BodyPart objects: %s.", count));
-			}
+			log.info("Number of enclosed BodyPart objects: {}", count);
+			
+			
 
 		}
 		catch (MessagingException e) {
+			log.error("Error while retrieving the number of enclosed BodyPart objects.", e);
 			throw new IllegalStateException("Error while retrieving the number of enclosed BodyPart objects.", e);
 		}
 
@@ -155,6 +157,7 @@ public final class EmailParserUtils {
 				bp = multipart.getBodyPart(i);
 			}
 			catch (MessagingException e) {
+				log.error("Error while retrieving body part.", e);
 				throw new IllegalStateException("Error while retrieving body part.", e);
 			}
 
@@ -176,16 +179,16 @@ public final class EmailParserUtils {
 
 			}
 			catch (MessagingException e) {
+				log.error("Unable to retrieve body part meta data.", e);
 				throw new IllegalStateException("Unable to retrieve body part meta data.", e);
 			}
 
-			if (LOGGER.isInfoEnabled()) {
-				LOGGER.info(String.format("BodyPart - Content Type: '%s', filename: '%s', disposition: '%s', subject: '%s'",
-							 new Object[]{contentType, filename, disposition, subject}));
-			}
+			
+			log.info(String.format("BodyPart - Content Type: '%s', filename: '%s', disposition: '%s', subject: '%s'",
+					 new Object[]{contentType, filename, disposition, subject}));
 
 			if (Part.ATTACHMENT.equalsIgnoreCase(disposition)) {
-				LOGGER.info(String.format("Handdling attachment '%s', type: '%s'", filename, contentType));
+				log.info(String.format("Handdling attachment '%s', type: '%s'", filename, contentType));
 			}
 
 			final Object content;
@@ -194,6 +197,7 @@ public final class EmailParserUtils {
 				content = bp.getContent();
 			}
 			catch (IOException e) {
+				log.error("Error while retrieving the email contents.", e);
 				throw new IllegalStateException("Error while retrieving the email contents.", e);
 			}
 			catch (MessagingException e) {
@@ -204,7 +208,7 @@ public final class EmailParserUtils {
 
 				if (Part.ATTACHMENT.equalsIgnoreCase(disposition)) {
 					emailFragments.add(new EmailFragment(directory, i + "-" + filename, content));
-					LOGGER.info(String.format("Handdling attachment '%s', type: '%s'", filename, contentType));
+					log.info(String.format("Handdling attachment '%s', type: '%s'", filename, contentType));
 				}
 				else {
 
@@ -215,6 +219,7 @@ public final class EmailParserUtils {
 						ct = new ContentType(contentType);
 					}
 					catch (ParseException e) {
+						log.error("Error while parsing content type '" + contentType + "'.", e);
 						throw new IllegalStateException("Error while parsing content type '" + contentType + "'.", e);
 					}
 
@@ -242,6 +247,7 @@ public final class EmailParserUtils {
 					IOUtils.copy(inputStream, bis);
 				}
 				catch (IOException e) {
+					log.error("Error while copying input stream to the ByteArrayOutputStream.", e);
 					throw new IllegalStateException("Error while copying input stream to the ByteArrayOutputStream.", e);
 				}
 
@@ -256,6 +262,7 @@ public final class EmailParserUtils {
 				handleMultipart(directory, mp2, mailMessage, emailFragments);
 			}
 			else {
+				log.error("Content type not handled: " + content.getClass().getSimpleName());
 				throw new IllegalStateException("Content type not handled: " + content.getClass().getSimpleName());
 			}
 		}
