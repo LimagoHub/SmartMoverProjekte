@@ -1,36 +1,23 @@
 package de.ing.fte_statistics.mail.config;
 
 import java.net.URLEncoder;
-import java.util.Collections;
-import java.util.Optional;
 import java.util.Properties;
-
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
-import org.springframework.integration.annotation.Filter;
-import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.config.EnableIntegration;
 import org.springframework.integration.dsl.IntegrationFlow;
 import org.springframework.integration.dsl.IntegrationFlows;
-import org.springframework.integration.dsl.MessageChannels;
 import org.springframework.integration.dsl.Pollers;
 import org.springframework.integration.file.dsl.Files;
 import org.springframework.integration.handler.LoggingHandler;
 import org.springframework.integration.mail.ImapMailReceiver;
 import org.springframework.integration.mail.dsl.Mail;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.messaging.support.ChannelInterceptor;
 
 import de.ing.fte_statistics.email.EmailSplitter;
 import de.ing.fte_statistics.email.EmailTransformer;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 
@@ -47,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 @Configuration
 @EnableIntegration
 @PropertySource("classpath:mailreceiver.properties")
-@Slf4j
 public class MailReceiverConfig {
 
 	private static final String LOG_CATEGORY = "de.ing.fte_statistics.mail.config.MailReceiverConfig";
@@ -55,8 +41,8 @@ public class MailReceiverConfig {
 	@Value("${mail.host}")
 	private String host;
 
-	@Value("${mail.port}")
-	private String port;
+	@Value("${mail.inputPort}")
+	private String inputPort;
 
 	@Value("${mail.username}")
 	private String username;
@@ -120,6 +106,36 @@ public class MailReceiverConfig {
 	}
 
 	/**
+	 * Einstiegspunkt der Verarbeitungspipeline in den Mail-Empfang. 
+	 * 
+	 * @param imapMailReceiver
+	 * @return
+	 */
+	@Bean
+	public IntegrationFlow polledEmails(ImapMailReceiver imapMailReceiver) {
+
+		return IntegrationFlows
+				.from(Mail.imapInboundAdapter(imapMailReceiver).get(),
+						e -> e.poller(Pollers.fixedRate(pollerRate).maxMessagesPerPoll(maxMessagesPerPoll)))
+
+				.enrichHeaders(s -> s.headerExpressions(h -> h.put("subject", "payload.subject").put("from", "payload.from[0].toString()")))
+				.log(LoggingHandler.Level.INFO, LOG_CATEGORY,m -> String.format("Mail mit Subject='%s' von '%s' empfangen.", m.getHeaders().get("subject"),m.getHeaders().get("from")))
+				.filter("headers['subject']=='FTEReport'")
+				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Subject Ok, starte Verarbeitung")
+				.transform(new EmailTransformer(), "transformit")
+				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Payload nach Email-Fragment transformiert")
+				.split(new EmailSplitter(), "splitIntoMessages")
+				.log(LoggingHandler.Level.INFO, LOG_CATEGORY,m -> "Email in Fragmente und Attachments in Dateien zerlegt, starte Verarbeitung der einzelnen Fragmente")
+				.filter("headers['file_name'] matches '.*\\.xls.?'")
+				// .enrichHeaders(s -> s.headerExpressions(h -> h.put("excelAttachmentPresent",
+				// "true")))
+				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Excelfile erkannt!")
+				.handle(Files.outboundAdapter("'target/out/' + headers.directory").autoCreateDirectory(true)).get();
+				
+	}
+
+
+	/**
 	 * Baut die Zugangsdaten zu einem URL-String zusammen. Format
 	 * imaps://username:passwort@mailsserver.de:993/INBOX das der Name eine '@'
 	 * enthält, wird er URL-encoded
@@ -128,111 +144,8 @@ public class MailReceiverConfig {
 	private String getMailUrl() throws Exception {
 		return new StringBuilder().append(protocol).append("://")
 				.append(URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8.toString())).append(":")
-				.append(password).append("@").append(host).append(":").append(port).append("/").append(folder)
+				.append(password).append("@").append(host).append(":").append(inputPort).append("/").append(folder)
 				.toString();
 	}
 
-	/**
-	 * Einstiegspunkt der Verarbeitungspipeline in den Mail-Empfang. Der
-	 * InboundAdapter polled in Intervallen ob eine Mail bereitsteht und leitet sie
-	 * an extractAttachments weiter
-	 * 
-	 * @param imapMailReceiver
-	 * @return
-	 */
-	@Bean
-	public IntegrationFlow polledEmails(ImapMailReceiver imapMailReceiver) {
-		
-		
-		
-		return IntegrationFlows
-				.from(Mail.imapInboundAdapter(imapMailReceiver).get(),
-						e -> e.poller(Pollers.fixedRate(pollerRate).maxMessagesPerPoll(maxMessagesPerPoll)))
-				.channel(interceptorChannel())
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Eingehende Mail erkannt. Starte Filter")
-				.channel(MessageChannels.direct("incomingMail")).get();
-	}
-
-	/**
-	 * 
-	 * prüft den Maileingang auf richtigen Betreff um Spam auszufilter.
-	 * 
-	 * @return
-	 */
-	@Bean
-	public IntegrationFlow filterSubject() {
-		return IntegrationFlows.from("incomingMail")
-				.filter(this,"filterSubject")
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Subject Ok, starte Verarbeitung")
-				.channel(MessageChannels.direct("subjectFilter")).get();
-	}
-
-	/**
-	 * Splittet die Mail in Ihre Fragmente und stößt für jedes Fragment eine eigene
-	 * Verarbeitung an (Text, Excel, etc.)
-	 * 
-	 * @return
-	 */
-	@Bean
-	public IntegrationFlow extractAttachments() {
-
-		return IntegrationFlows.from("subjectFilter")
-				.transform(new EmailTransformer(), "transformit")
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> m.getPayload())
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Payload nach Email-Fragment transformiert")
-				.split(new EmailSplitter(), "splitIntoMessages")
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY,m -> "Email in Fragmente zerlegt, starte Verarbeitung der einzelnen Fragmente")
-				.channel(MessageChannels.direct("attachments")).get();
-	}
-
-	/**
-	 * Schreibt die einzelenen Mailfragmente als Dateien weg
-	 * 
-	 * @return
-	 */
-	@Bean
-	public IntegrationFlow writeAttachmentAsFile() {
-
-		return IntegrationFlows.from("attachments")
-				.filter(this, "checkAttachmentIsExcelFile")
-								.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Excelfile erkannt!")
-				.handle(Files.outboundAdapter("'target/out/' + headers.directory").autoCreateDirectory(true))
-				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Excelfile gespeichert!")
-				.get();
-	}
-
-	@Filter
-	public boolean filterSubject(MimeMessage message) {
-		try {
-			return "FTEReport".equals(message.getSubject());
-		} catch (MessagingException e) {
-			log.error("Fehler beim ermitteln des Subjects",e);
-			return false;
-		}
-	}
-	
-	@Filter
-	public boolean checkAttachmentIsExcelFile(@Header Optional<String> file_name) {
-		
-		return file_name.orElse("dummy").matches(".*\\.xls.?");
-	}
-	
-	@Bean
-	public DirectChannel interceptorChannel() {
-		DirectChannel channel =  new DirectChannel();
-		channel.setInterceptors(Collections.singletonList(new ChannelInterceptor() {
-			  @Override
-			  public Message<?> preSend(final Message<?> message, final MessageChannel channel) {
-			    System.out.println("Start");
-			    return message;
-			  }
-
-			  @Override
-			  public void afterSendCompletion(final Message<?> message, final MessageChannel channel, final boolean sent, final Exception ex) {
-				  System.out.println("End");
-			  }
-			}));
-		return channel;
-	}
-	
 }
