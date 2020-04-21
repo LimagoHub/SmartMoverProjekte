@@ -1,4 +1,4 @@
-package de.ing.fte_statistics.email;
+package de.smarties.fte_statistics.email;
 
 /*
  * Copyright 2002-2017 the original author or authors.

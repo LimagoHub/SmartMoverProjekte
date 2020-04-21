@@ -29,7 +29,7 @@
     <springProfile name="production">
 
         <appender name="FILE-ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>/var/log/FTE_Statistics.log</file>
+            <file>smarties</file>
 
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
                 <fileNamePattern>logs/archived/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
@@ -47,7 +47,7 @@
         </appender>
 
         <logger name="org.springframework" level="INFO"/>
-        <logger name="de.ing" level="INFO"/>
+        <logger name="de.smarties" level="INFO"/>
         <root level="INFO">
             <appender-ref ref="FILE-ROLLING"/>
         </root>

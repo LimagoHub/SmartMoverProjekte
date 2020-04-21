@@ -1,4 +1,4 @@
-package de.ing.fte_statistics.mail.config;
+package de.smarties.fte_statistics.mail.config;
 
 import java.net.URLEncoder;
 import java.util.Properties;
@@ -16,8 +16,8 @@ import org.springframework.integration.handler.LoggingHandler;
 import org.springframework.integration.mail.ImapMailReceiver;
 import org.springframework.integration.mail.dsl.Mail;
 
-import de.ing.fte_statistics.email.EmailSplitter;
-import de.ing.fte_statistics.email.EmailTransformer;
+import de.smarties.fte_statistics.email.EmailSplitter;
+import de.smarties.fte_statistics.email.EmailTransformer;
 
 /**
  * 
@@ -28,7 +28,7 @@ import de.ing.fte_statistics.email.EmailTransformer;
  * Inbound (Mail) -> Splitten in Bestandteile der mail (Body, Excel) -> Outbound
  * (File-System)
  * 
- * @author JoachimWagner
+ * @author Joachim Wagner
  *
  */
 @Configuration
@@ -115,8 +115,7 @@ public class MailReceiverConfig {
 	public IntegrationFlow polledEmails(ImapMailReceiver imapMailReceiver) {
 
 		return IntegrationFlows
-				.from(Mail.imapInboundAdapter(imapMailReceiver).get(),
-						e -> e.poller(Pollers.fixedRate(pollerRate).maxMessagesPerPoll(maxMessagesPerPoll)))
+				.from(Mail.imapInboundAdapter(imapMailReceiver).get(),e -> e.poller(Pollers.fixedRate(pollerRate).maxMessagesPerPoll(maxMessagesPerPoll)))
 
 				.enrichHeaders(s -> s.headerExpressions(h -> h.put("subject", "payload.subject").put("from", "payload.from[0].toString()")))
 				.log(LoggingHandler.Level.INFO, LOG_CATEGORY,m -> String.format("Mail mit Subject='%s' von '%s' empfangen.", m.getHeaders().get("subject"),m.getHeaders().get("from")))
@@ -127,8 +126,6 @@ public class MailReceiverConfig {
 				.split(new EmailSplitter(), "splitIntoMessages")
 				.log(LoggingHandler.Level.INFO, LOG_CATEGORY,m -> "Email in Fragmente und Attachments in Dateien zerlegt, starte Verarbeitung der einzelnen Fragmente")
 				.filter("headers['file_name'] matches '.*\\.xls.?'")
-				// .enrichHeaders(s -> s.headerExpressions(h -> h.put("excelAttachmentPresent",
-				// "true")))
 				.log(LoggingHandler.Level.INFO, LOG_CATEGORY, m -> "Excelfile erkannt!")
 				.handle(Files.outboundAdapter("'target/out/' + headers.directory").autoCreateDirectory(true)).get();
 				
