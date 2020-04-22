@@ -22,6 +22,10 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-batch</artifactId>
 		</dependency>
 		<dependency>
@@ -89,11 +93,17 @@
 			<artifactId>spring-integration-file</artifactId>
 
 		</dependency>
+		<!-- dependency> <groupId>org.apache.poi</groupId> <artifactId>poi</artifactId> 
+			<version>4.1.2</version> </dependency -->
+
+		<!-- https://mvnrepository.com/artifact/com.github.kumarpankaj18/spring-batch-excel -->
 		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi</artifactId>
-			<version>4.1.2</version>
+			<groupId>com.github.kumarpankaj18</groupId>
+			<artifactId>spring-batch-excel</artifactId>
+			<version>1.0.6</version>
+			<type>pom</type>
 		</dependency>
+
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

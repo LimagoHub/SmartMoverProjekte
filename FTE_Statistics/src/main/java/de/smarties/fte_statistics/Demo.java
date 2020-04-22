@@ -7,14 +7,14 @@ import org.springframework.stereotype.Component;
 
 import de.smarties.fte_statistics.mail.MailSender;
 
-@Component
+//@Component
 public class Demo {
 
 	@Autowired
 	private MailSender sender;
 	
 	
-	@PostConstruct
+	//@PostConstruct
 	public void init() {
 		sender.sendMail("jowagner@limago.de", "allerletzter Test", this.getClass().getName()+"\n\n");
 	}
