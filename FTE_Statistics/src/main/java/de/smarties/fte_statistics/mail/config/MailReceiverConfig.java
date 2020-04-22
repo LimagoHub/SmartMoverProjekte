@@ -86,6 +86,8 @@ public class MailReceiverConfig {
 	@Bean
 	public ImapMailReceiver getImapMailReceiver() throws Exception {
 
+		
+		
 		ImapMailReceiver mailReceiver = new ImapMailReceiver(getMailUrl());
 		mailReceiver.setShouldMarkMessagesAsRead(false);
 		mailReceiver.setShouldDeleteMessages(false);
@@ -139,9 +141,18 @@ public class MailReceiverConfig {
 	 * 
 	 */
 	private String getMailUrl() throws Exception {
-		return new StringBuilder().append(protocol).append("://")
-				.append(URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8.toString())).append(":")
-				.append(password).append("@").append(host).append(":").append(inputPort).append("/").append(folder)
+		return new StringBuilder()
+				.append(protocol)
+				.append("://")
+				.append(URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8.toString()))
+				.append(":")
+				.append(password)
+				.append("@")
+				.append(host)
+				.append(":")
+				.append(inputPort)
+				.append("/")
+				.append(folder)
 				.toString();
 	}
 

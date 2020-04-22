@@ -96,14 +96,17 @@
 		<!-- dependency> <groupId>org.apache.poi</groupId> <artifactId>poi</artifactId> 
 			<version>4.1.2</version> </dependency -->
 
+		
+		<dependency>
+			<groupId>org.springframework.batch</groupId>
+			<artifactId>spring-batch-infrastructure</artifactId>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.github.kumarpankaj18/spring-batch-excel -->
 		<dependency>
 			<groupId>com.github.kumarpankaj18</groupId>
 			<artifactId>spring-batch-excel</artifactId>
 			<version>1.0.6</version>
-			<type>pom</type>
 		</dependency>
-
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
